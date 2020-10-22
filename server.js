@@ -2,6 +2,18 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
 const cors= require('cors');
+const knex = require('knex');
+
+const db = knex({
+    client: 'pg',
+    connection: {
+        host: '127.0.0.1',
+        user: 'itsnou',
+        password: 'elemivl900',
+        database: 'smart-brain'
+    }
+});
+
 
 const app= express();
 app.use(bodyParser.json());
@@ -44,46 +56,41 @@ app.post('/signin', (req,res)=>{
 
 app.post('/register', (req,res)=>{
     const {email,name, password} =req.body;
-    bcrypt.hash(password,9, function(err,hash){
-        console.log(hash);
-    })
-    database.users.push({
-        id:'125',
-        name: name,
-        email: email,
-        entries: 0,
-        joined: new Date()
-    })
-    res.json(database.users[database.users.length-1])
+    db('users')
+        .returning('*')
+        .insert({
+            email: email,
+            name: name,
+            joined: new Date()
+        })
+            .then(user =>{
+                res.json(user[0])
+            })
+            .catch(err=> res.status(400).json('No se puede registrar'))
 })
 
 app.get('/profile/:id', (req,res)=>{
     const { id } = req.params;
-    let found = false;
-    database.users.forEach(user=>{
-        if(user.id === id){
-            found= true;
-            return res.json(user);
+    db.select('*').from('users').where({id})
+    .then(user=>{
+        if(user.length){
+            res.json(user[0])
+        }else{
+            res.status(400).json('No se encontro')
         }
     })
-    if(!found){
-        res.status(404).json('not found');
-    }
+    .catch(err=> res.status(400).json('Error'))
 })
 
 app.put('/image', (req,res)=>{
     const { id } = req.body;
-    let found = false;
-    database.users.forEach(user=>{
-        if(user.id === id){
-            found= true;
-            user.entries++;
-            return res.json(user.entries);
-        }
+    db('users').where('id', '=', id)
+    .increment('entries',1)
+    .returning('entries')
+    .then(entries=> {
+        res.json(entries[0]);
     })
-    if(!found){
-        res.status(404).json('not found');
-    }
+    .catch(err => res.status(400).json('No se puede encontrar entradas'))
 })
 
 app.listen(3000,()=>{
