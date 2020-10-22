@@ -8,8 +8,8 @@ const db = knex({
     client: 'pg',
     connection: {
         host: '127.0.0.1',
-        user: 'itsnou',
-        password: 'elemivl900',
+        user: 'tu usuario',
+        password: 'contraseña',
         database: 'smart-brain'
     }
 });
