@@ -9,7 +9,7 @@ const db = knex({
     connection: {
         host: '127.0.0.1',
         user: 'user',
-        password: 'password',
+        password: 'contraseña',
         database: 'smart-brain'
     }
 });
@@ -31,7 +31,7 @@ app.post('/signin', (req,res)=>{
         if(isValid){
             return db.select('*').from('users').where('email', '=', req.body.email)
             .then(user=>{
-                res.json(user)
+                res.json(user[0])
             })
             .catch(err=> res.status(400).json('no se puede traer al usuario'))
         }else {
