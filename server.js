@@ -8,8 +8,8 @@ const db = knex({
     client: 'pg',
     connection: {
         host: '127.0.0.1',
-        user: 'tu usuario',
-        password: 'contraseña',
+        user: 'user',
+        password: 'password',
         database: 'smart-brain'
     }
 });
@@ -19,54 +19,54 @@ const app= express();
 app.use(bodyParser.json());
 app.use(cors());
 
-const database={
-    users:[
-        {
-            id:'123',
-            name: 'jhon',
-            email: 'jhon@gmail.com',
-            password: 'cookies',
-            entries: 0,
-            joined: new Date()
-        },
-        {
-            id:'124',
-            name: 'aaaa',
-            email: 'aaaa@gmail.com',
-            password: 'aaaa',
-            entries: 0,
-            joined: new Date()
-        }
-    ]
-}
-
 app.get('/', (req,res)=>{
-    res.send(database.users);
+    res.send('ok');
 })
 
 app.post('/signin', (req,res)=>{
-    if (req.body.email === database.users[0].email &&
-        req.body.password === database.users[0].password){
-            res.json (database.users [0]);
-        }else
-        {
-            res.status(404).json('error logging in');
+    db.select('email','hash').from('login')
+    .where('email', '=', req.body.email)
+    .then(data => {
+        const isValid= bcrypt.compareSync(req.body.password, data[0].hash);
+        if(isValid){
+            return db.select('*').from('users').where('email', '=', req.body.email)
+            .then(user=>{
+                res.json(user)
+            })
+            .catch(err=> res.status(400).json('no se puede traer al usuario'))
+        }else {
+            res.status(400).json('contraseña equivocada')
         }
+    })
+    .catch(err => res.status(400).json('contraseña equivocada'))
 })
 
 app.post('/register', (req,res)=>{
-    const {email,name, password} =req.body;
-    db('users')
-        .returning('*')
-        .insert({
-            email: email,
-            name: name,
-            joined: new Date()
-        })
-            .then(user =>{
-                res.json(user[0])
+    const {email,name, password} = req.body;
+    const hash = bcrypt.hashSync(password);
+        db.transaction(trx =>{
+            trx.insert({
+                hash: hash,
+                email: email
             })
-            .catch(err=> res.status(400).json('No se puede registrar'))
+            .into('login')
+            .returning('email')
+            .then(loginEmail => {
+                return trx('users')
+                    .returning('*')
+                    .insert({
+                        email: loginEmail[0],
+                        name: name,
+                        joined: new Date()
+                    })
+                    .then(user =>{
+                        res.json(user[0])
+                    })
+            })
+            .then(trx.commit)
+            .catch(trx.rollback)
+        })
+        .catch(err=> res.status(400).json('No se puede registrar'))
 })
 
 app.get('/profile/:id', (req,res)=>{
